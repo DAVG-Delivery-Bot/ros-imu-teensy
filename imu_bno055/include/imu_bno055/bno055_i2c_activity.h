@@ -278,7 +278,7 @@ class BNO055I2CActivity {
     ros::Publisher pub_mag;
     ros::Publisher pub_temp;
     ros::Publisher pub_status;
-    ros::Publisdher pub_enc; // publisher for encoder data
+    ros::Publisher pub_enc; // publisher for encoder data
 
     // ROS subscribers
     ros::ServiceServer service_calibrate;
