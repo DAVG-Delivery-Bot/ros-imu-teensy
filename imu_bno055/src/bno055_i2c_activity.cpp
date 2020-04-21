@@ -17,6 +17,7 @@ BNO055I2CActivity::BNO055I2CActivity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_
     nh_priv.param("device", param_device, (std::string)"/dev/i2c-1");
     nh_priv.param("address", param_address, (int)BNO055_ADDRESS_A);
     nh_priv.param("frame_id", param_frame_id, (std::string)"imu");
+    nh_priv.param("enc_addr",param_enc, (int)TEENSY_ENCODER_ADDR);
 
     current_status.level = 0;
     current_status.name = "BNO055 IMU";
@@ -99,6 +100,8 @@ bool BNO055I2CActivity::start() {
     if(!pub_mag) pub_mag = nh.advertise<sensor_msgs::MagneticField>("mag", 1);
     if(!pub_temp) pub_temp = nh.advertise<sensor_msgs::Temperature>("temp", 1);
     if(!pub_status) pub_status = nh.advertise<diagnostic_msgs::DiagnosticStatus>("status", 1);
+    if(!pub_enc) pub_enc = nh.advertise<std_msgs::Int16MultiArray>("EncoderCounts"); // Encoder counts are Uint16
+
 
     if(!service_calibrate) service_calibrate = nh.advertiseService(
         "calibrate",
@@ -112,9 +115,16 @@ bool BNO055I2CActivity::start() {
         this
     );
 
+    // Encoder i2c device file open, copying what is done for the BNO055
+    enc_file = open(param_enc.c_str(),O_RDWR);
+    if(ioctl(file, I2C_SLAVE, param_address) < 0) {
+        ROS_ERROR("i2c for Teensy Encoder device open failed");
+        return false;
+    }
+    // Modified the error message to inform user about additional/difference of wrt encoder
     file = open(param_device.c_str(), O_RDWR);
     if(ioctl(file, I2C_SLAVE, param_address) < 0) {
-        ROS_ERROR("i2c device open failed");
+        ROS_ERROR("i2c for BNO055 device open failed");
         return false;
     }
 
@@ -145,6 +155,8 @@ bool BNO055I2CActivity::spinOnce() {
 
     IMURecord record;
 
+    EncRecord enc_record;
+
     unsigned char c = 0;
 
     seq++;
@@ -157,6 +169,11 @@ bool BNO055I2CActivity::spinOnce() {
     if(_i2c_smbus_read_i2c_block_data(file, BNO055_ACCEL_DATA_X_LSB_ADDR + 0x20, 0x13, (uint8_t*)&record + 0x20) != 0x13) {
         return false;
     }
+
+    // Reading encoder i2c
+    if(_i2c_smbus_read_i2c_block_data(enc_file, 0x30,0x04,(uint8_t*)&enc_record) ) != 0x04 {
+        return false;
+    })
 
     sensor_msgs::Imu msg_raw;
     msg_raw.header.stamp = time;
@@ -205,10 +222,16 @@ bool BNO055I2CActivity::spinOnce() {
     msg_temp.header.seq = seq;
     msg_temp.temperature = (double)record.temperature;
 
+    //Reading encoder and building encoder message Int16MultiArray
+    std_msgs::Int16MultiArray msg_enc_array;
+    msg_enc_array.push_back(enc_record.left_encoder_count);
+    msg_enc_array.push_back(enc_record.right_encoder_count);
+    
     pub_data.publish(msg_data);
     pub_raw.publish(msg_raw);
     pub_mag.publish(msg_mag);
     pub_temp.publish(msg_temp);
+    pub_enc.publish(msg_enc_array);
 
     if(seq % 50 == 0) {
         current_status.values[DIAG_CALIB_STAT].value = std::to_string(record.calibration_status);
@@ -231,6 +254,7 @@ bool BNO055I2CActivity::stop() {
     if(pub_mag) pub_mag.shutdown();
     if(pub_temp) pub_temp.shutdown();
     if(pub_status) pub_status.shutdown();
+    if(pub_enc) pub_enc.shutdown();
 
     if(service_calibrate) service_calibrate.shutdown();
     if(service_reset) service_reset.shutdown();
