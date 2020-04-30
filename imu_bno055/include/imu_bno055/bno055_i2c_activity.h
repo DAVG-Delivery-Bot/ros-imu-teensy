@@ -13,6 +13,7 @@
 #include <sensor_msgs/Temperature.h>
 #include <std_srvs/Trigger.h>
 #include <std_msgs/UInt8.h>
+#include <std_msgs/Int16MultiArray.h>
 #include <diagnostic_msgs/DiagnosticStatus.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <diagnostic_msgs/KeyValue.h>
@@ -24,6 +25,8 @@
 
 #define BNO055_ADDRESS_A 0x28 // default
 #define BNO055_ADDRESS_B 0x29
+
+#define TEENSY_ENCODER_ADDR 0x30 // set in Teensy sketch
 
 #define BNO055_CHIP_ID_ADDR 0x00
 #define BNO055_ACCEL_REV_ID_ADDR 0x01
@@ -231,6 +234,15 @@ typedef struct {
   uint8_t system_error_code;
 } IMURecord;
 
+// Struct for Encoder count. 
+// Not sure how the byte packing will work - it's stored Big Endian on the Teensy side
+// Have to pack High Byte and Low Byte in python
+typedef struct{
+  int16_t left_encoder_count;
+  int16_t right_encoder_count;
+
+} EncRecord;
+
 class BNO055I2CActivity {
   public:
     BNO055I2CActivity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv);
@@ -248,12 +260,14 @@ class BNO055I2CActivity {
     // class variables
     uint32_t seq = 0;
     int file;
+    int enc_file;
     diagnostic_msgs::DiagnosticStatus current_status;
 
     // ROS parameters
     std::string param_frame_id;
     std::string param_device;
     int param_address;
+    int param_enc_addr;
 
     // ROS node handles
     ros::NodeHandle nh;
@@ -265,6 +279,7 @@ class BNO055I2CActivity {
     ros::Publisher pub_mag;
     ros::Publisher pub_temp;
     ros::Publisher pub_status;
+    ros::Publisher pub_enc; // publisher for encoder data
 
     // ROS subscribers
     ros::ServiceServer service_calibrate;
