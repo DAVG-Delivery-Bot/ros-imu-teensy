@@ -13,6 +13,7 @@
 #include <sensor_msgs/Temperature.h>
 #include <std_srvs/Trigger.h>
 #include <std_msgs/UInt8.h>
+#include <std_msgs/Int16MultiArray.h>
 #include <diagnostic_msgs/DiagnosticStatus.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <diagnostic_msgs/KeyValue.h>
@@ -266,7 +267,7 @@ class BNO055I2CActivity {
     std::string param_frame_id;
     std::string param_device;
     int param_address;
-    int param_enc;
+    int param_enc_addr;
 
     // ROS node handles
     ros::NodeHandle nh;

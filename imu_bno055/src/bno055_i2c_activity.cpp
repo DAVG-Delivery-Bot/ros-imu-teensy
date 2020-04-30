@@ -14,10 +14,10 @@ namespace imu_bno055 {
 BNO055I2CActivity::BNO055I2CActivity(ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv) :
   nh(_nh), nh_priv(_nh_priv) {
     ROS_INFO("initializing");
-    nh_priv.param("device", param_device, (std::string)"/dev/i2c-1");
+    nh_priv.param("device", param_device, (std::string)"/dev/i2c-1"); // i2c device name
     nh_priv.param("address", param_address, (int)BNO055_ADDRESS_A);
     nh_priv.param("frame_id", param_frame_id, (std::string)"imu");
-    nh_priv.param("enc_addr",param_enc, (int)TEENSY_ENCODER_ADDR);
+    nh_priv.param("enc_addr",param_enc_addr, (int)TEENSY_ENCODER_ADDR); // address of i2c device
 
     current_status.level = 0;
     current_status.name = "BNO055 IMU";
@@ -116,11 +116,12 @@ bool BNO055I2CActivity::start() {
     );
 
     // Encoder i2c device file open, copying what is done for the BNO055
-    enc_file = open(param_enc.c_str(),O_RDWR);
-    if(ioctl(file, I2C_SLAVE, param_address) < 0) {
-        ROS_ERROR("i2c for Teensy Encoder device open failed");
-        return false;
-    }
+    // if we can't ioctl a second address, then we will have to do something different
+    // enc_file = open("/dev/i2c-2", O_RDWR);
+    // if(ioctl(enc_file, I2C_SLAVE, param_address) < 0) {
+    //     ROS_ERROR("i2c for Teensy Encoder device open failed");
+    //     return false;
+    // }
     // Modified the error message to inform user about additional/difference of wrt encoder
     file = open(param_device.c_str(), O_RDWR);
     if(ioctl(file, I2C_SLAVE, param_address) < 0) {
@@ -171,9 +172,22 @@ bool BNO055I2CActivity::spinOnce() {
     }
 
     // Reading encoder i2c
-    if(_i2c_smbus_read_i2c_block_data(enc_file, 0x30,0x04,(uint8_t*)&enc_record) ) != 0x04 {
+    // Looks like we have to call ioctl and give it the encoder addr first
+    if(ioctl(file, I2C_SLAVE, param_enc_addr) < 0) {
+        ROS_ERROR("i2c for Teensy device open failed");
         return false;
-    })
+    }
+   
+    if(_i2c_smbus_read_i2c_block_data(file, TEENSY_ENCODER_ADDR, 0x04,(uint8_t*)&enc_record) ) != 0x04 {
+        return false;
+    }
+
+    // then hand ioctl back to the imu
+    if(ioctl(file, I2C_SLAVE, param_address) < 0) {
+        ROS_ERROR("i2c for BNO055 device open failed");
+        return false;
+    }
+
 
     sensor_msgs::Imu msg_raw;
     msg_raw.header.stamp = time;
