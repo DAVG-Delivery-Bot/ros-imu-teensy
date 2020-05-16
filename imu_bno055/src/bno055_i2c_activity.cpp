@@ -178,7 +178,7 @@ bool BNO055I2CActivity::spinOnce() {
         return false;
     }
    
-    if(_i2c_smbus_read_i2c_block_data(file, TEENSY_ENCODER_ADDR, 0x04,(uint8_t*)&enc_record) ) != 0x04 {
+    if(_i2c_smbus_read_i2c_block_data(file, TEENSY_ENCODER_ADDR, 0x04,(uint8_t*)&enc_record)  != 0x04) {
         return false;
     }
 
