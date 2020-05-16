@@ -100,7 +100,7 @@ bool BNO055I2CActivity::start() {
     if(!pub_mag) pub_mag = nh.advertise<sensor_msgs::MagneticField>("mag", 1);
     if(!pub_temp) pub_temp = nh.advertise<sensor_msgs::Temperature>("temp", 1);
     if(!pub_status) pub_status = nh.advertise<diagnostic_msgs::DiagnosticStatus>("status", 1);
-    if(!pub_enc) pub_enc = nh.advertise<std_msgs::Int16MultiArray>("EncoderCounts"); // Encoder counts are Uint16
+    if(!pub_enc) pub_enc = nh.advertise<std_msgs::Int16MultiArray>("EncoderCounts",1); // Encoder counts are Uint16
 
 
     if(!service_calibrate) service_calibrate = nh.advertiseService(
@@ -238,8 +238,8 @@ bool BNO055I2CActivity::spinOnce() {
 
     //Reading encoder and building encoder message Int16MultiArray
     std_msgs::Int16MultiArray msg_enc_array;
-    msg_enc_array.push_back(enc_record.left_encoder_count);
-    msg_enc_array.push_back(enc_record.right_encoder_count);
+    msg_enc_array.data.push_back( enc_record.left_encoder_count );
+    msg_enc_array.data.push_back( enc_record.right_encoder_count );
     
     pub_data.publish(msg_data);
     pub_raw.publish(msg_raw);
